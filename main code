@@ -1,0 +1,177 @@
+import cv2
+import numpy as np
+
+def resize_images(img1, img2):
+
+    # the dimensions of both images
+    height1, width1 = img1.shape[:2]
+    height2, width2 = img2.shape[:2]
+
+    # img1 is smaller, img2 is larger
+    resized_img1 = cv2.resize(img1, (width2, height2))  # img1 match img2's dim
+
+    return img2, resized_img1
+
+# Example usage:
+img1 = cv2.imread('nocancer.png')  # smaller image
+img2 = cv2.imread('lungcancer.png')  # larger image
+
+# Resize img1 to match img2's dimensions
+img2, img1_resized = resize_images(img1, img2)
+
+#img1_resized same dimensions as img2 (lungcancer.png)
+# display or save the images as needed:
+cv2.imshow('Lung Cancer Image', img2)
+cv2.imshow('Resized No Cancer Image', img1_resized)
+
+# Wait for a key press and close the windows
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+# save the resized image
+cv2.imwrite('resized_nocancer.png', img1_resized)
+
+
+# ----------------------------------------
+
+# CANCER IMAGE
+
+# Function to clear border pixels in a binary image
+def clear_border(img):
+
+    # Create a structuring element (kernel)
+    kernel = np.ones((3, 3), np.uint8)
+
+    # Apply morphological erosion to remove border pixels
+    img = cv2.erode(img, kernel, iterations=1)
+
+    return img
+
+# Read grayscale image
+img = cv2.imread('lungcancer.png', cv2.IMREAD_GRAYSCALE)
+
+# Step 1: Apply Median Filter
+median_filtered_img = cv2.medianBlur(img, 5)  # Apply median filter with kernel size of 5
+
+# Step 2: Apply thresholding (Otsu's method) on the median-filtered image
+
+ret, binary_image = cv2.threshold(median_filtered_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Save the binary image
+cv2.imwrite('binary_image.png', binary_image)
+
+# Step 3: Perform morphological opening on the binary image
+kernel_size = 3
+kernel = np.ones((kernel_size, kernel_size), np.uint8)
+opened_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel)
+
+# save
+cv2.imwrite('opened_image.png', opened_image)
+
+# Step 4: Generate the complement (inverse) of the opened binary image
+complementary_image = cv2.bitwise_not(opened_image)
+
+# Save complementary image
+cv2.imwrite('complementary_image.png', complementary_image)
+
+# Step 5: Apply border clearing to the complementary image
+cleared_image = clear_border(complementary_image)
+
+# Save cleared image
+cv2.imwrite('cleared_image.png', cleared_image)
+
+# Display all images
+cv2.imshow('Median Filtered Image', median_filtered_img)
+cv2.imshow('Binary Image', binary_image)
+cv2.imshow('Opened Image', opened_image)
+cv2.imshow('Complementary Image', complementary_image)
+cv2.imshow('Cleared Image', cleared_image)
+
+# Wait for key press and close all windows
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+# ------------------------------------------
+
+# NO CANCER IMAGE
+# Function to fill holes in a binary image
+def fill_holes(image):
+
+    # Make a copy of the input image for flood fill
+    im_floodfill = image.copy()
+    h, w = image.shape[:2]
+
+    # Create a mask, which must be 2 pixels larger than the image
+    mask = np.zeros((h + 2, w + 2), np.uint8)
+
+    # Flood fill from the top-left corner
+    cv2.floodFill(im_floodfill, mask, (0, 0), 255)
+
+    # Invert the flood-filled image
+    im_floodfill_inv = cv2.bitwise_not(im_floodfill)
+
+    # Combine the original image with the inverted flood-filled image
+    im_out = image | im_floodfill_inv
+
+    return im_out
+
+# Step 1: Load the grayscale image
+img = cv2.imread('nocancer.png', cv2.IMREAD_GRAYSCALE)
+
+# Step 2: Apply median filter to reduce noise
+median_filtered = cv2.medianBlur(img, 5)
+
+# Step 3: Apply thresholding (Otsu's method for automatic thresholding) to create a binary image
+# Use cv2.THRESH_BINARY to keep bright portions bright and dark portions dark
+ret, binary_image = cv2.threshold(median_filtered, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Save the binary image
+cv2.imwrite('binary_image.png', binary_image)
+
+# Step 4: Generate the complement (inverse) of the binary image
+complementary_image = cv2.bitwise_not(binary_image)
+
+# Save the complementary image
+cv2.imwrite('complementary_image.png', complementary_image)
+
+# Step 5: Fill holes in the complementary image
+filled_image = fill_holes(complementary_image)
+
+# Save filled holes image
+cv2.imwrite('filled_image.png', filled_image)
+
+# Display all images:
+cv2.imshow('Original Image', img)
+cv2.imshow('Median Filtered Image', median_filtered)
+cv2.imshow('Binary Image', binary_image)
+cv2.imshow('Complementary Image', complementary_image)
+cv2.imshow('Filled Holes Image', filled_image)
+
+# Wait for key press and close all windows
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+#----------------------------------------------
+
+# to perform XOR operation
+
+# Load the filled image (No tumor) and cleared image (With tumor)
+filled_no_cancer = cv2.imread('filled_image.png', cv2.IMREAD_GRAYSCALE)  # Filled image (No tumor)
+cleared_cancer = cv2.imread('cleared_image.png', cv2.IMREAD_GRAYSCALE)  # Cleared image (With tumor)
+
+# Ensure dimensions match before XOR operation, though we have already made that in the beginning
+if filled_no_cancer.shape != cleared_cancer.shape:
+    filled_no_cancer = cv2.resize(filled_no_cancer, (cleared_cancer.shape[1], cleared_cancer.shape[0]))
+
+# XOR operation
+xor_img = cv2.bitwise_xor(filled_no_cancer, cleared_cancer)
+
+# Apply complement (inverse) , this is just to get to the particular way we want our output, tumor cells are white rest is black
+complementary_xor_img = cv2.bitwise_not(xor_img)
+
+# complemented XOR 
+cv2.imshow('Complementary XOR Result', complementary_xor_img)
+
+# Wait for a key press and close all OpenCV windows
+cv2.waitKey(0)
+cv2.destroyAllWindows()
