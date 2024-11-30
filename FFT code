@@ -1,0 +1,30 @@
+# Import necessary libraries
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+# Load the grayscale image
+image = cv2.imread('xor_result.png', 0)  # 0 specifies grayscale mode
+
+# Step 1: Perform the 2D Fourier Transform
+fft = np.fft.fft2(image)
+
+# Step 2: Shift the zero-frequency component to the center
+fft_shifted = np.fft.fftshift(fft)
+
+# Step 3: Calculate the magnitude spectrum
+magnitude_spectrum = 20 * np.log(np.abs(fft_shifted))
+
+# Step 4: Visualize the results
+plt.subplot(121)
+plt.imshow(image, cmap='gray')
+plt.title('Original Image')
+plt.xticks([]), plt.yticks([])
+
+plt.subplot(122)
+plt.imshow(magnitude_spectrum, cmap='gray')
+plt.title('Magnitude Spectrum')
+plt.xticks([]), plt.yticks([])
+
+# Display the plots
+plt.show()
