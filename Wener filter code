@@ -1,0 +1,59 @@
+import numpy as np
+import cv2
+from matplotlib import pyplot as plt
+from scipy.fft import fft2, ifft2, fftshift, ifftshift
+
+
+# Define the Wiener filter function
+def wiener_filter_fft(fft_image, kernel, noise_power):
+
+    # Normalize the kernel
+    kernel /= np.sum(kernel)
+
+    # Perform FFT on the kernel and pad it to match the image shape
+    kernel_fft = fft2(kernel, s=fft_image.shape)
+
+    # Wiener filter formula: H*(u,v) / (|H(u,v)|^2 + noise_power)
+    kernel_fft = np.conj(kernel_fft) / (np.abs(kernel_fft) ** 2 + noise_power)
+
+    # Apply the filter in the frequency domain
+    filtered_fft = fft_image * kernel_fft
+
+    # Convert back to the spatial domain
+    filtered_image = np.abs(ifft2(ifftshift(filtered_fft)))
+
+    return filtered_image
+
+
+# Step 1: Read the FFT image (output from previous Fourier transform code)
+fft_image = cv2.imread('fft_result.png', cv2.IMREAD_GRAYSCALE).astype(np.float32)
+
+# Step 2: Convert the FFT image to the original frequency domain using inverse log
+fft_image = np.exp(fft_image / 20)  # Undo log scaling (assuming log scale was applied earlier)
+
+# Step 3: Define a kernel (e.g., Gaussian or averaging kernel)
+kernel = np.ones((5, 5), np.float32) / 25  # Simple averaging kernel
+
+# Step 4: Define the noise power ratio (adjust based on your data)
+noise_power = 0.01  # Example value, can be tuned for better results
+
+# Step 5: Apply the Wiener filter in the frequency domain
+filtered_image = wiener_filter_fft(fft_image, kernel, noise_power)
+
+# Step 6: Display the results
+plt.figure(figsize=(10, 5))
+
+# Original FFT magnitude spectrum
+plt.subplot(1, 2, 1)
+plt.title("FFT Magnitude Spectrum")
+plt.imshow(fft_image, cmap='gray')
+plt.axis('off')  # Remove axes for better visualization
+
+# Filtered image (restored spatial domain)
+plt.subplot(1, 2, 2)
+plt.title("Filtered Image (Spatial Domain)")
+plt.imshow(filtered_image, cmap='gray')
+plt.axis('off')  # Remove axes for better visualization
+
+# Show the plots
+plt.show()
